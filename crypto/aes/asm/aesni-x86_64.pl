@@ -269,6 +269,22 @@ $code.=<<___;
 	 pxor	$inout0,$inout0
 	ret
 .size	GFp_${PREFIX}_encrypt,.-GFp_${PREFIX}_encrypt
+
+.globl	GFp_${PREFIX}_decrypt
+.type	GFp_${PREFIX}_decrypt,\@abi-omnipotent
+.align	16
+GFp_${PREFIX}_decrypt:
+	movups	($inp),$inout0		# load input
+	mov	240($key),$rounds	# key->rounds
+___
+	&aesni_generate1("dec",$key,$rounds);
+$code.=<<___;
+	 pxor	$rndkey0,$rndkey0	# clear register bank
+	 pxor	$rndkey1,$rndkey1
+	movups	$inout0,($out)		# output
+	 pxor	$inout0,$inout0
+	ret
+.size	GFp_${PREFIX}_decrypt, .-GFp_${PREFIX}_decrypt
 ___
 }
 
@@ -546,10 +562,15 @@ _aesni_${dir}rypt8:
 ___
 }
 &aesni_generate2("enc") if ($PREFIX eq "aesni");
+&aesni_generate2("dec");
 &aesni_generate3("enc") if ($PREFIX eq "aesni");
+&aesni_generate3("dec");
 &aesni_generate4("enc") if ($PREFIX eq "aesni");
+&aesni_generate4("dec");
 &aesni_generate6("enc") if ($PREFIX eq "aesni");
+&aesni_generate6("dec");
 &aesni_generate8("enc") if ($PREFIX eq "aesni");
+&aesni_generate8("dec");
 
 if ($PREFIX eq "aesni") {
 {
@@ -1125,9 +1146,61 @@ $code.=<<___;
 ___
 } }}
 
+# int ${PREFIX}_set_decrypt_key(const unsigned char *inp,
+#				int bits, AES_KEY *key)
+#
+# input:	$inp	user-supplied key
+#		$bits	$inp length in bits
+#		$key	pointer to key schedule
+# output:	%eax	0 denoting success, -1 or -2 - failure (see C)
+#		*$key	key schedule
+#
 { my ($inp,$bits,$key) = @_4args;
   $bits =~ s/%r/%e/;
 
+$code.=<<___;
+.globl	${PREFIX}_set_decrypt_key
+.type	${PREFIX}_set_decrypt_key,\@abi-omnipotent
+.align	16
+${PREFIX}_set_decrypt_key:
+	.byte	0x48,0x83,0xEC,0x08	# sub rsp,8
+	call	__aesni_set_encrypt_key
+	shl	\$4,$bits		# rounds-1 after _aesni_set_encrypt_key
+	test	%eax,%eax
+	jnz	.Ldec_key_ret
+	lea	16($key,$bits),$inp	# points at the end of key schedule
+
+	$movkey	($key),%xmm0		# just swap
+	$movkey	($inp),%xmm1
+	$movkey	%xmm0,($inp)
+	$movkey	%xmm1,($key)
+	lea	16($key),$key
+	lea	-16($inp),$inp
+
+.Ldec_key_inverse:
+	$movkey	($key),%xmm0		# swap and inverse
+	$movkey	($inp),%xmm1
+	aesimc	%xmm0,%xmm0
+	aesimc	%xmm1,%xmm1
+	lea	16($key),$key
+	lea	-16($inp),$inp
+	$movkey	%xmm0,16($inp)
+	$movkey	%xmm1,-16($key)
+	cmp	$key,$inp
+	ja	.Ldec_key_inverse
+
+	$movkey	($key),%xmm0		# inverse middle
+	aesimc	%xmm0,%xmm0
+	pxor	%xmm1,%xmm1
+	$movkey	%xmm0,($inp)
+	pxor	%xmm0,%xmm0
+.Ldec_key_ret:
+	add	\$8,%rsp
+	ret
+.LSEH_end_set_decrypt_key:
+.size	${PREFIX}_set_decrypt_key,.-${PREFIX}_set_decrypt_key
+___
+
 # This is based on submission by
 #
 #	Huang Ying <ying.huang@intel.com>
@@ -1657,6 +1730,10 @@ ___
 $code.=<<___;
 	.rva	GFp_${PREFIX}_set_encrypt_key
 	.rva	.LSEH_end_GFp_set_encrypt_key
+	.rva	.LSEH_info_GFp_key
+
+	.rva	GFp_${PREFIX}_set_decrypt_key
+	.rva	.LSEH_end_GFp_set_decrypt_key
 	.rva	.LSEH_info_GFp_key
 .section	.xdata
 .align	8

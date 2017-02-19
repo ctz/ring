@@ -801,6 +801,7 @@ $code.=<<___;
 .text
 
 .extern	GFp_asm_AES_encrypt
+.extern	GFp_asm_AES_decrypt
 
 .type	_bsaes_encrypt8,\@abi-omnipotent
 .align	64
@@ -865,6 +866,68 @@ $code.=<<___;
 	pxor	@XMM[8], @XMM[1]
 	ret
 .size	_bsaes_encrypt8,.-_bsaes_encrypt8
+
+.type	_bsaes_decrypt8,\@abi-omnipotent
+.align	64
+_bsaes_decrypt8:
+	lea	.LBS0(%rip), $const	# constants table
+
+	movdqa	($key), @XMM[9]		# round 0 key
+	lea	0x10($key), $key
+	movdqa	-0x30($const), @XMM[8]	# .LM0ISR
+	pxor	@XMM[9], @XMM[0]	# xor with round0 key
+	pxor	@XMM[9], @XMM[1]
+	pxor	@XMM[9], @XMM[2]
+	pxor	@XMM[9], @XMM[3]
+	 pshufb	@XMM[8], @XMM[0]
+	 pshufb	@XMM[8], @XMM[1]
+	pxor	@XMM[9], @XMM[4]
+	pxor	@XMM[9], @XMM[5]
+	 pshufb	@XMM[8], @XMM[2]
+	 pshufb	@XMM[8], @XMM[3]
+	pxor	@XMM[9], @XMM[6]
+	pxor	@XMM[9], @XMM[7]
+	 pshufb	@XMM[8], @XMM[4]
+	 pshufb	@XMM[8], @XMM[5]
+	 pshufb	@XMM[8], @XMM[6]
+	 pshufb	@XMM[8], @XMM[7]
+___
+	&bitslice	(@XMM[0..7, 8..11]);
+$code.=<<___;
+	dec	$rounds
+	jmp	.Ldec_sbox
+.align	16
+.Ldec_loop:
+___
+	&ShiftRows	(@XMM[0..7, 8]);
+$code.=".Ldec_sbox:\n";
+	&InvSbox	(@XMM[0..7, 8..15]);
+$code.=<<___;
+	dec	$rounds
+	jl	.Ldec_done
+___
+	&InvMixColumns	(@XMM[0,1,6,4,2,7,3,5, 8..15]);
+$code.=<<___;
+	movdqa	-0x10($const), @XMM[8]	# .LISR
+	jnz	.Ldec_loop
+	movdqa	-0x20($const), @XMM[8]	# .LISRM0
+	jmp	.Ldec_loop
+.align	16
+.Ldec_done:
+___
+	&bitslice	(@XMM[0,1,6,4,2,7,3,5, 8..11]);
+$code.=<<___;
+	movdqa	($key), @XMM[8]		# last round key
+	pxor	@XMM[8], @XMM[6]
+	pxor	@XMM[8], @XMM[4]
+	pxor	@XMM[8], @XMM[2]
+	pxor	@XMM[8], @XMM[7]
+	pxor	@XMM[8], @XMM[3]
+	pxor	@XMM[8], @XMM[5]
+	pxor	@XMM[8], @XMM[0]
+	pxor	@XMM[8], @XMM[1]
+	ret
+.size	_bsaes_decrypt8,.-_bsaes_decrypt8
 ___
 }
 {
