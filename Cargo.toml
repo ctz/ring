@@ -282,6 +282,7 @@ rsa_signing = []
 slow_tests = []
 test_logging = []
 use_heap = []
+tls_low_level = []
 
 # XXX: debug = false because of https://github.com/rust-lang/rust/issues/34122
 

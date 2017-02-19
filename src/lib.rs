@@ -164,6 +164,10 @@ pub use rsa::GFp_rand_mod;
 
 pub mod signature;
 
+#[cfg(feature = "tls_low_level")]
+#[path = "tls/tls.rs"]
+pub mod tls;
+
 #[cfg(any(feature = "use_heap", test))]
 pub mod test;
 
