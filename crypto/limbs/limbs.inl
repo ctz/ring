@@ -12,14 +12,24 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
+#include "../internal.h"
 #include "limbs.h"
 #include "ring-core/check.h"
 
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(push, 3)
-#include <intrin.h>
-#pragma warning(pop)
+#if defined(__has_builtin)
+#define RING_HAS_BUILTIN(b) __has_builtin(b)
+#else
+#define RING_HAS_BUILTIN(b) 0
+#endif
 
+#if RING_HAS_BUILTIN(__builtin_addcll)
+
+#define RING_USE_BUILTINS
+typedef Limb Carry;
+
+#elif defined(OPENSSL_X86) || defined(OPENSSL_X86_64)
+
+#if defined(_MSC_VER) && !defined(__clang__)
 /* MSVC 2015 RC, when compiling for x86 with /Ox (at least), miscompiles
  * _addcarry_u32(c, 0, prod_hi, &x) like so:
  *
@@ -33,24 +43,30 @@
 #if _MSC_FULL_VER < 190023918
 #error "MSVC 2015 Update 2 or later is required."
 #endif
-typedef uint8_t Carry;
-#if LIMB_BITS == 64
-#pragma intrinsic(_addcarry_u64, _subborrow_u64)
-#define RING_CORE_ADDCARRY_INTRINSIC _addcarry_u64
-#define RING_CORE_SUBBORROW_INTRINSIC _subborrow_u64
-#elif LIMB_BITS == 32
-#pragma intrinsic(_addcarry_u32, _subborrow_u32)
-#define RING_CORE_ADDCARRY_INTRINSIC _addcarry_u32
-#define RING_CORE_SUBBORROW_INTRINSIC _subborrow_u32
-typedef uint64_t DoubleLimb;
+
+#pragma warning(push, 3)
 #endif
+
+#include <immintrin.h>
+
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif
+
+#define RING_USE_X86_INTRINSICS 1
+typedef uint8_t Carry;
+
 #else
+
 typedef Limb Carry;
+
 #if LIMB_BITS == 64
 typedef __uint128_t DoubleLimb;
 #elif LIMB_BITS == 32
 typedef uint64_t DoubleLimb;
 #endif
+
 #endif
 
 /* |*r = a + b + carry_in|, returning carry out bit. |carry_in| must be 0 or 1.
@@ -58,24 +74,16 @@ typedef uint64_t DoubleLimb;
 static inline Carry limb_adc(Limb *r, Limb a, Limb b, Carry carry_in) {
   dev_assert_secret(carry_in == 0 || carry_in == 1);
   Carry ret;
-#if defined(RING_CORE_ADDCARRY_INTRINSIC)
-  ret = RING_CORE_ADDCARRY_INTRINSIC(carry_in, a, b, r);
+#if (LIMB_BITS == 64) && defined(RING_USE_BUILTINS)
+  *r = __builtin_addcll(a, b, carry_in, (unsigned long long *)&ret);
+#elif (LIMB_BITS == 64) && defined(RING_USE_X86_INTRINSICS)
+  ret = _addcarry_u64(carry_in, a, b, (void *) r);
+#elif (LIMB_BITS == 32) && defined(RING_USE_BUILTINS)
+  *r = __builtin_addcl(a, b, carry_in, &ret);
+#elif (LIMB_BITS == 32) && defined(RING_USE_X86_INTRINSICS)
+  ret = _addcarry_u32(carry_in, a, b, (void *) r);
 #else
   DoubleLimb x = (DoubleLimb)a + b + carry_in;
-  *r = (Limb)x;
-  ret = (Carry)(x >> LIMB_BITS);
-#endif
-  dev_assert_secret(ret == 0 || ret == 1);
-  return ret;
-}
-
-/* |*r = a + b|, returning carry bit. */
-static inline Carry limb_add(Limb *r, Limb a, Limb b) {
-  Carry ret;
-#if defined(RING_CORE_ADDCARRY_INTRINSIC)
-  ret = RING_CORE_ADDCARRY_INTRINSIC(0, a, b, r);
-#else
-  DoubleLimb x = (DoubleLimb)a + b;
   *r = (Limb)x;
   ret = (Carry)(x >> LIMB_BITS);
 #endif
@@ -88,8 +96,14 @@ static inline Carry limb_add(Limb *r, Limb a, Limb b) {
 static inline Carry limb_sbb(Limb *r, Limb a, Limb b, Carry borrow_in) {
   dev_assert_secret(borrow_in == 0 || borrow_in == 1);
   Carry ret;
-#if defined(RING_CORE_SUBBORROW_INTRINSIC)
-  ret = RING_CORE_SUBBORROW_INTRINSIC(borrow_in, a, b, r);
+#if (LIMB_BITS == 64) && defined(RING_USE_BUILTINS)
+  *r = __builtin_subcll(a, b, borrow_in, (unsigned long long *)&ret);
+#elif (LIMB_BITS == 64) && defined(RING_USE_X86_INTRINSICS)
+  ret = _subborrow_u64(borrow_in, a, b, (void *) r);
+#elif (LIMB_BITS == 32) && defined(RING_USE_BUILTINS)
+  *r = __builtin_subcl(a, b, borrow_in, &ret);
+#elif (LIMB_BITS == 32) && defined(RING_USE_X86_INTRINSICS)
+  ret = _subborrow_u32(borrow_in, a, b, (void *) r);
 #else
   DoubleLimb x = (DoubleLimb)a - b - borrow_in;
   *r = (Limb)x;
@@ -100,17 +114,13 @@ static inline Carry limb_sbb(Limb *r, Limb a, Limb b, Carry borrow_in) {
 }
 
 /* |*r = a - b|, returning borrow bit. */
+static inline Carry limb_add(Limb *r, Limb a, Limb b) {
+  return limb_adc(r, a, b, 0);
+}
+
+/* |*r = a - b|, returning borrow bit. */
 static inline Carry limb_sub(Limb *r, Limb a, Limb b) {
-  Carry ret;
-#if defined(RING_CORE_SUBBORROW_INTRINSIC)
-  ret = RING_CORE_SUBBORROW_INTRINSIC(0, a, b, r);
-#else
-  DoubleLimb x = (DoubleLimb)a - b;
-  *r = (Limb)x;
-  ret = (Carry)((x >> LIMB_BITS) & 1);
-#endif
-  dev_assert_secret(ret == 0 || ret == 1);
-  return ret;
+  return limb_sbb(r, a, b, 0);
 }
 
 static inline Carry limbs_add(Limb r[], const Limb a[], const Limb b[],
