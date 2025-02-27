@@ -408,7 +408,7 @@ mod tests {
             &[0, 0, 0, 0, MAX],
         ];
         for even in EVENS {
-            let even = &Vec::from_iter(even.iter().copied().map(Limb::from));
+            let even = &Vec::from_iter(even.iter().copied());
             assert!(matches!(
                 limbs_reject_even_leak_bit(even),
                 Err(error::Unspecified)
@@ -425,7 +425,7 @@ mod tests {
             &[1, 0, 0, 0, MAX],
         ];
         for odd in ODDS {
-            let odd = &Vec::from_iter(odd.iter().copied().map(Limb::from));
+            let odd = &Vec::from_iter(odd.iter().copied());
             assert!(matches!(limbs_reject_even_leak_bit(odd), Ok(())));
         }
     }
@@ -455,11 +455,11 @@ mod tests {
     #[test]
     fn test_limbs_are_zero() {
         for zero in ZEROES {
-            let zero = &Vec::from_iter(zero.iter().copied().map(Limb::from));
+            let zero = &Vec::from_iter(zero.iter().copied());
             assert!(leak_in_test(limbs_are_zero_constant_time(zero)));
         }
         for nonzero in NONZEROES {
-            let nonzero = &Vec::from_iter(nonzero.iter().copied().map(Limb::from));
+            let nonzero = &Vec::from_iter(nonzero.iter().copied());
             assert!(!leak_in_test(limbs_are_zero_constant_time(nonzero)));
         }
     }
@@ -469,7 +469,7 @@ mod tests {
         // Equal
         static EQUAL: &[&[LeakyLimb]] = &[&[1], &[1, 0], &[1, 0, 0], &[1, 0, 0, 0, 0, 0, 0]];
         for a in EQUAL {
-            let a = &Vec::from_iter(a.iter().copied().map(Limb::from));
+            let a = &Vec::from_iter(a.iter().copied());
             assert!(matches!(verify_limbs_equal_1_leak_bit(a), Ok(())));
         }
 
@@ -487,7 +487,7 @@ mod tests {
             &[MAX, 1],
         ];
         for a in UNEQUAL {
-            let a = &Vec::from_iter(a.iter().copied().map(Limb::from));
+            let a = &Vec::from_iter(a.iter().copied());
             assert!(matches!(
                 verify_limbs_equal_1_leak_bit(a),
                 Err(error::Unspecified)
@@ -657,7 +657,7 @@ mod tests {
             (&[ALL_ONES, ALL_ONES >> 1], LIMB_BITS + (LIMB_BITS) - 1),
         ];
         for (limbs, bits) in CASES {
-            let limbs = &Vec::from_iter(limbs.iter().copied().map(Limb::from));
+            let limbs = &Vec::from_iter(limbs.iter().copied());
             assert_eq!(limbs_minimal_bits(limbs).as_bits(), *bits);
         }
     }
