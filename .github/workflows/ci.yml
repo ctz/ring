@@ -4,6 +4,9 @@ permissions:
 on:
   pull_request:
   push:
+  schedule:
+    - cron: '0 18 * * *'
+
 jobs:
   rustfmt:
     # Don't run duplicate `push` jobs for the repo owner's PRs.
