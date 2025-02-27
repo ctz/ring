@@ -156,9 +156,9 @@ all-features = true
 name = "ring"
 
 [dependencies]
-cfg-if = { version = "1.0.0", default-features = false }
-getrandom = { version = "0.2.10" }
-untrusted = { version = "0.9" }
+cfg-if = { workspace = true }
+getrandom = { workspace = true }
+untrusted = { workspace = true }
 
 [target.'cfg(all(any(all(target_arch = "aarch64", target_endian = "little"), all(target_arch = "arm", target_endian = "little")), any(target_os = "android", target_os = "linux")))'.dependencies]
 libc = { version = "0.2.148", default-features = false }
@@ -176,7 +176,7 @@ wasm-bindgen-test = { version = "0.3.37", default-features = false, features = [
 libc = { version = "0.2.148", default-features = false }
 
 [build-dependencies]
-cc = { version = "1.2.8", default-features = false }
+cc = { workspace = true }
 
 [features]
 # These features are documented in the top-level module's documentation.
@@ -222,3 +222,11 @@ default-members = [
     ".",
     "cavp"
 ]
+
+[workspace.dependencies]
+cc = { version = "1.2.8", default-features = false }
+cfg-if = { version = "1.0.0", default-features = false }
+criterion = { version = "0.5.1", default-features = false }
+getrandom = "0.2.10"
+ring = { path = "" }
+untrusted = "0.9"
