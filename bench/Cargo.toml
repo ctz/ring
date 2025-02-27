@@ -5,10 +5,10 @@ publish = false
 version = "0.1.0"
 
 [dependencies]
-ring = { path = "../" }
+ring = { workspace = true }
 
 [dev-dependencies]
-criterion = { version = "0.5.1", default-features = false }
+criterion = { workspace = true }
 
 [[bench]]
 name = "aead"
