@@ -27,9 +27,9 @@
 //!         implementations as secure random number generators (see
 //!         <code>SecureRandom</code>). This feature only works with
 //!         <code>os = "none"</code> targets. See
-//!         <a href="https://docs.rs/getrandom/0.2.10/getrandom/macro.register_custom_getrandom.html">
-//!             <code>register_custom_getrandom</code>
-//!         </a> and <a href="https://docs.rs/getrandom/0.2.10/getrandom/#rdrand-on-x86">
+//!         <a href="https://docs.rs/getrandom/0.3.1/getrandom/#custom-backend">
+//!             custom backends
+//!         </a> and <a href="https://docs.rs/getrandom/0.3.1/getrandom/#opt-in-backends">
 //!             RDRAND on x86
 //!         </a> for additional details.
 //! <tr><td><code>less-safe-getrandom-espidf</code>
