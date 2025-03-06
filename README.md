@@ -1,8 +1,5 @@
 > [!IMPORTANT]
-> This is a fork for security maintenance of *ring* 0.17.
->
-> Please report [any security issues](SECURITY.md); we will triage and
-> address them.  Other issues may be addressed, on a case-by-case basis.
+> This project is being maintained in its [parent fork](https://github.com/briansmith/ring).
 
 THE SOFTWARE IS PROVIDED "AS IS" AND BRIAN SMITH AND THE AUTHORS DISCLAIM
 ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
